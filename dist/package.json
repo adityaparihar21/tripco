@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "description": "TripCo static site",
   "scripts": {
-    "dev": "npx live-server --port=3000 --watch=.",
-    "vercel-build": "mkdir -p dist && cp *.html *.js *.css *.png *.json dist/ || true"
+    "dev": "npx live-server --watch=.",
+    "vercel-build": "echo 'No build required for vanilla static files'"
   },
   "devDependencies": {
     "live-server": "^1.2.2"

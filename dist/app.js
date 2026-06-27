@@ -86,7 +86,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const authEmail = document.getElementById('auth-email');
   const authPassword = document.getElementById('auth-password');
   const authTitle = document.getElementById('auth-title');
-  const authSubtitle = document.getElementById('auth-subtitle');
   const authSubmitBtn = document.getElementById('auth-submit-btn');
 
   // ─── INIT ───
@@ -797,7 +796,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ─── AI SEARCH / DYNAMIC GENERATION ───
-  const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? "http://127.0.0.1:8000" : "";
+  const API_BASE = "";
   const loadingOverlay = document.getElementById('ai-loading-overlay');
   const loadingText = document.getElementById('ai-loading-text');
   const progressBar = document.getElementById('ai-loading-progress-bar');
@@ -1006,12 +1005,6 @@ document.addEventListener('DOMContentLoaded', () => {
       updateMap();
       window.scrollTo({ top: 0, behavior: 'smooth' });
       searchInput.value = '';
-      
-      // Hide the personality sliders once an itinerary is successfully generated
-      const sliders = document.querySelector('.personality-sliders-container');
-      if (sliders) {
-        sliders.classList.add('hidden');
-      }
     } catch (err) {
       console.error("AI generation error:", err);
       showError(`Failed to generate itinerary: ${err.message}`);
@@ -1155,14 +1148,6 @@ document.addEventListener('DOMContentLoaded', () => {
           searchInput.placeholder = "e.g. Kyoto 2 days, street food vibes...";
         }
       });
-    });
-
-    // Show the personality sliders when the user is trying to search again
-    searchInput.addEventListener('focus', () => {
-      const sliders = document.querySelector('.personality-sliders-container');
-      if (sliders) {
-        sliders.classList.remove('hidden');
-      }
     });
 
     const fetchAutocomplete = async (val) => {

@@ -33,11 +33,6 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-  // Bypass Service Worker for API requests and non-GET requests (like POST)
-  if (event.request.method !== 'GET' || event.request.url.includes('/api/')) {
-    return; 
-  }
-
   event.respondWith(
     fetch(event.request).then(response => {
       // Check if we received a valid response
@@ -48,20 +43,11 @@ self.addEventListener('fetch', event => {
       const responseToCache = response.clone();
       caches.open(CACHE_NAME).then(cache => {
         cache.put(event.request, responseToCache);
-      }).catch(err => console.log('Cache put error:', err));
+      });
       return response;
     }).catch(() => {
       // If network fails, fallback to cache
-      return caches.match(event.request).then(cachedResponse => {
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-        // If nothing in cache, we must return a response or we get the "null" error
-        return new Response('Network error and no cache available', {
-          status: 503,
-          statusText: 'Service Unavailable'
-        });
-      });
+      return caches.match(event.request);
     })
   );
 });
