@@ -86,6 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const authEmail = document.getElementById('auth-email');
   const authPassword = document.getElementById('auth-password');
   const authTitle = document.getElementById('auth-title');
+  const authSubtitle = document.getElementById('auth-subtitle');
   const authSubmitBtn = document.getElementById('auth-submit-btn');
 
   // ─── INIT ───
