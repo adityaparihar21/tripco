@@ -1006,6 +1006,12 @@ document.addEventListener('DOMContentLoaded', () => {
       updateMap();
       window.scrollTo({ top: 0, behavior: 'smooth' });
       searchInput.value = '';
+      
+      // Hide the personality sliders once an itinerary is successfully generated
+      const sliders = document.querySelector('.personality-sliders-container');
+      if (sliders) {
+        sliders.classList.add('hidden');
+      }
     } catch (err) {
       console.error("AI generation error:", err);
       showError(`Failed to generate itinerary: ${err.message}`);
@@ -1149,6 +1155,14 @@ document.addEventListener('DOMContentLoaded', () => {
           searchInput.placeholder = "e.g. Kyoto 2 days, street food vibes...";
         }
       });
+    });
+
+    // Show the personality sliders when the user is trying to search again
+    searchInput.addEventListener('focus', () => {
+      const sliders = document.querySelector('.personality-sliders-container');
+      if (sliders) {
+        sliders.classList.remove('hidden');
+      }
     });
 
     const fetchAutocomplete = async (val) => {
