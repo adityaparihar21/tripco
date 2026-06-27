@@ -31,10 +31,6 @@ models.Base.metadata.create_all(bind=database.engine)
 load_dotenv()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-if not GEMINI_API_KEY:
-    raise RuntimeError(
-        "GEMINI_API_KEY not set. Add it to backend/.env"
-    )
 
 GEOAPIFY_API_KEY = os.getenv("GEOAPIFY_API_KEY")
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
@@ -43,7 +39,7 @@ SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
 
 import asyncio
 
-client = genai.Client(api_key=GEMINI_API_KEY)
+client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("tripco")
@@ -394,18 +390,22 @@ async def generate_city(req: GenerateRequest, current_user = Depends(auth.get_cu
     else:
         # Check global 'trips' table in Supabase
         db_cache_hit = False
-        async with httpx.AsyncClient() as http_client:
-            db_cache_url = f"{SUPABASE_URL}/rest/v1/trips?id=eq.{cache_key}&select=trip_data"
-            admin_headers = {
-                "apikey": SUPABASE_ANON_KEY,
-                "Authorization": f"Bearer {SUPABASE_ANON_KEY}"
-            }
-            resp = await http_client.get(db_cache_url, headers=admin_headers)
-            if resp.status_code == 200 and resp.json():
-                logger.info(f"Returning DB CACHED itinerary for: {cache_key}")
-                data = resp.json()[0]['trip_data']
-                generation_cache[cache_key] = data
-                db_cache_hit = True
+        if SUPABASE_URL and SUPABASE_ANON_KEY:
+            try:
+                async with httpx.AsyncClient() as http_client:
+                    db_cache_url = f"{SUPABASE_URL}/rest/v1/trips?id=eq.{cache_key}&select=trip_data"
+                    admin_headers = {
+                        "apikey": SUPABASE_ANON_KEY,
+                        "Authorization": f"Bearer {SUPABASE_ANON_KEY}"
+                    }
+                    resp = await http_client.get(db_cache_url, headers=admin_headers)
+                    if resp.status_code == 200 and resp.json():
+                        logger.info(f"Returning DB CACHED itinerary for: {cache_key}")
+                        data = resp.json()[0]['trip_data']
+                        generation_cache[cache_key] = data
+                        db_cache_hit = True
+            except Exception as e:
+                logger.error(f"Failed to read from DB cache: {e}")
 
         if not db_cache_hit:
             if trip_type == "trek":
@@ -417,6 +417,9 @@ async def generate_city(req: GenerateRequest, current_user = Depends(auth.get_cu
                 
             current_query = base_query
             data = None
+
+            if not client:
+                raise HTTPException(status_code=500, detail="GEMINI_API_KEY is not configured on the server.")
 
             for attempt in range(3):
                 try:
@@ -453,20 +456,24 @@ async def generate_city(req: GenerateRequest, current_user = Depends(auth.get_cu
                     # Cache the successful response
                     generation_cache[cache_key] = data
 
-                    # Save globally to DB cache
-                    async with httpx.AsyncClient() as http_client:
-                        insert_global_url = f"{SUPABASE_URL}/rest/v1/trips"
-                        admin_headers = {
-                            "apikey": SUPABASE_ANON_KEY,
-                            "Authorization": f"Bearer {SUPABASE_ANON_KEY}",
-                            "Content-Type": "application/json",
-                            "Prefer": "resolution=ignore-duplicates"
-                        }
-                        await http_client.post(insert_global_url, headers=admin_headers, json={
-                            "id": cache_key,
-                            "trip_data": data,
-                            "created_at": datetime.utcnow().isoformat()
-                        })
+                    # Save globally to DB cache if configured
+                    if SUPABASE_URL and SUPABASE_ANON_KEY:
+                        async with httpx.AsyncClient() as http_client:
+                            insert_global_url = f"{SUPABASE_URL}/rest/v1/trips"
+                            admin_headers = {
+                                "apikey": SUPABASE_ANON_KEY,
+                                "Authorization": f"Bearer {SUPABASE_ANON_KEY}",
+                                "Content-Type": "application/json",
+                                "Prefer": "resolution=ignore-duplicates"
+                            }
+                            try:
+                                await http_client.post(insert_global_url, headers=admin_headers, json={
+                                    "id": cache_key,
+                                    "trip_data": data,
+                                    "created_at": datetime.utcnow().isoformat()
+                                })
+                            except Exception as e:
+                                logger.error(f"Failed to save global cache to DB: {e}")
 
                     break
 
@@ -513,6 +520,9 @@ async def generate_city(req: GenerateRequest, current_user = Depends(auth.get_cu
 async def copilot_replan(req: CopilotRequest, current_user = Depends(auth.get_current_supabase_user)):
     logger.info(f"Copilot replan requested by {current_user['id']}")
     
+    if not client:
+        raise HTTPException(status_code=500, detail="GEMINI_API_KEY is not configured on the server.")
+
     current_json_str = json.dumps(req.current_itinerary, indent=2)
     prompt = f"""You are TripCo Copilot. The user says: "{req.message}".
 Here is their current itinerary JSON:

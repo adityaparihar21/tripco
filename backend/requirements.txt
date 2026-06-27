@@ -10,3 +10,4 @@ pydantic[email]
 jinja2
 httpx
 google-auth==2.35.0
+psycopg2-binary
