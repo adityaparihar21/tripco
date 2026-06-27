@@ -22,6 +22,8 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 import httpx
 
+import sys
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import models, database, auth
 
 # Initialize DB tables
