@@ -59,6 +59,14 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 import httpx
 
 async def get_current_supabase_user(token: str = Depends(oauth2_scheme)):
+    
+    # Handle mock guest tokens directly without hitting Supabase
+    if token.startswith("guest_"):
+        return {
+            "id": token,
+            "email": "guest@tripco.app",
+            "token": token
+        }
 
     supabase_url = os.getenv("SUPABASE_URL")
     supabase_anon_key = os.getenv("SUPABASE_ANON_KEY")
@@ -79,14 +87,6 @@ async def get_current_supabase_user(token: str = Depends(oauth2_scheme)):
         "Authorization": f"Bearer {token}",
         "apikey": supabase_anon_key
     }
-    
-    # Handle mock guest tokens directly without hitting Supabase
-    if token.startswith("guest_"):
-        return {
-            "id": token,
-            "email": "guest@tripco.app",
-            "token": token
-        }
     
     async with httpx.AsyncClient() as client:
         try:
