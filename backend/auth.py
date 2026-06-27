@@ -9,8 +9,6 @@ import database, models
 import os
 
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
-if not SECRET_KEY:
-    raise RuntimeError("JWT_SECRET_KEY not set. Add it to backend/.env")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7 # 7 days
 
@@ -25,6 +23,8 @@ def get_password_hash(password):
 from typing import Optional
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    if not SECRET_KEY:
+        raise HTTPException(status_code=500, detail="JWT_SECRET_KEY not configured on server.")
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -35,6 +35,9 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(database.get_db)):
+    if not SECRET_KEY:
+        raise HTTPException(status_code=500, detail="JWT_SECRET_KEY not configured on server.")
+    
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
