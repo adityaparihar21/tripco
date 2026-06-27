@@ -540,10 +540,11 @@ Also include a 'copilotMessage' field at the top level of the JSON (e.g. 'I have
             response = client.models.generate_content(
                 model='gemini-2.5-flash',
                 contents=prompt,
-                config=types.GenerateContentConfig(
-                    system_instruction=SYSTEM_PROMPT,
-                    temperature=0.7,
-                ),
+                config={
+                    "system_instruction": SYSTEM_PROMPT,
+                    "temperature": 0.7,
+                    "response_mime_type": "application/json",
+                },
             )
             raw = response.text
             match = re.search(r'\{.*\}', raw, re.DOTALL)
