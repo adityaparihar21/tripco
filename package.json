@@ -4,7 +4,7 @@
   "description": "TripCo static site",
   "scripts": {
     "dev": "npx live-server --watch=.",
-    "vercel-build": "echo 'No build required for vanilla static files'"
+    "vercel-build": "mkdir -p dist && cp *.html *.js *.css *.png *.json dist/ || true"
   },
   "devDependencies": {
     "live-server": "^1.2.2"
