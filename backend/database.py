@@ -6,8 +6,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Use Postgres from Supabase instead of local SQLite
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./tripco.db")
+# Use Postgres from Supabase instead of local SQLite. If on Vercel and using SQLite, use /tmp/
+db_path = "/tmp/tripco.db" if os.environ.get("VERCEL") else "./tripco.db"
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{db_path}")
 
 # For SQLite we need check_same_thread=False, for Postgres we don't.
 if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
