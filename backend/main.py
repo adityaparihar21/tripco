@@ -535,7 +535,6 @@ Also include a 'copilotMessage' field at the top level of the JSON (e.g. 'I have
     
     for attempt in range(3):
         try:
-            client = genai.Client(api_key=GEMINI_API_KEY)
             response = client.models.generate_content(
                 model='gemini-2.5-flash',
                 contents=prompt,
