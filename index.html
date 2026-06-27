@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#121212">
+  <link rel="manifest" href="/manifest.json">
+  <title>TripCo | AI Curated Travel</title>
+
+  <!-- Enforce localhost for Google OAuth compatibility -->
+  <script>
+    if (window.location.hostname === '127.0.0.1') {
+      window.location.hostname = 'localhost';
+    }
+  </script>
+
+  <!-- Dynamic Open Graph Tags via Jinja2 -->
+  <meta property="og:title" content="{{ og_title | default('TripCo | AI Curated Travel') }}">
+  <meta property="og:description" content="{{ og_description | default('Generate personalized, beautifully curated travel itineraries in seconds with AI.') }}">
+  <meta property="og:image" content="{{ og_image | default('/assets/tripco-og.jpg') }}">
+  <meta property="og:url" content="{{ og_url | default('https://tripco.app') }}">
+  <meta property="og:type" content="website">
+
+  <!-- Auth Config -->
+  <meta name="google-client-id" content="321858238835-fdj39mb0j8eqgtvpqqd3c32e3cacq2nh.apps.googleusercontent.com">
+  <meta name="supabase-url" content="https://dyqrqlstceljtavmrpjd.supabase.co">
+  <meta name="supabase-anon-key" content="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR5cXJxbHN0Y2VsanRhdm1ycGpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0NDM4NDgsImV4cCI6MjA5NzAxOTg0OH0.lDlcwM9Y-X2ISfcXPoa85xx_0yHCVyxKTQRrHFacvNY">
+
+  <!-- Google Fonts: Inter -->
+  <meta name="description" content="Premium curated travel itineraries. Letterboxd-style journal." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+  <link rel="stylesheet" href="/styles.css?v=8" />
+  <!-- Apple Sign-In SDK -->
+  <script src="https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js"></script>
+
+  <!-- Google Identity Services SDK -->
+  <script src="https://accounts.google.com/gsi/client"></script>
+
+  <!-- Supabase JS Client SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+  <!-- Ambient Soundscape Controller -->
+  <div class="ambient-sound-ctrl" id="ambient-sound-ctrl">
+    <button class="ambient-sound-btn" id="ambient-sound-btn" aria-label="Toggle ambient soundscapes" title="Mute/Unmute Ambient Soundscape">
+      <svg id="ambient-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+        <line x1="23" y1="9" x2="17" y2="15"></line>
+        <line x1="17" y1="9" x2="23" y2="15"></line>
+      </svg>
+    </button>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       VIEW: WELCOME / ONBOARDING
+  ══════════════════════════════════════ -->
+  <div id="view-welcome" class="app-view welcome-bg">
+
+    <!-- Top Navigation for Welcome Page -->
+    <header class="welcome-header">
+      <div class="welcome-brand">TripCo</div>
+      <!-- Removed double login links as requested -->
+    </header>
+
+    <div class="welcome-container">
+      <!-- Welcome Screen (Hero Content) -->
+      <div id="welcome-hero-screen" class="welcome-screen active">
+        <div class="welcome-card">
+          <div class="eyebrow">JUST A FRIENDLY GUIDE</div>
+          <div class="brand">Trip<span class="co">Co</span></div>
+          <div class="rule"></div>
+          <div class="sub">EVERY ROAD. EVERY SKY. EVERY STOP. ONE JOURNEY.</div>
+          <div class="cta-row">
+            <button class="btn-p" id="welcome-start-btn">LOG IN / SIGN UP</button>
+          </div>
+          <div class="guest-link-wrap">
+            <a href="#" id="welcome-guest-btn" class="welcome-guest-link" style="color: var(--amber); border-bottom-color: transparent; text-decoration: none; font-weight: 500;">Continue as Guest</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Welcome Auth Screen (Auth Card inside welcome view for seamless transition) -->
+      <div id="welcome-auth-screen" class="welcome-screen hidden">
+        <!-- AUTHENTICATION VIEW -->
+        <div id="auth-container" class="profile-container flex-center" style="width: 100%;">
+          <div class="auth-card">
+            <div class="auth-header">
+              <h2 id="auth-title" class="font-serif">Welcome Back</h2>
+              <p id="auth-subtitle">Log in to sync your saved spots across devices.</p>
+            </div>
+
+            <div class="auth-tabs" role="tablist">
+              <button class="auth-tab active" data-tab="login" role="tab" aria-selected="true">Log In</button>
+              <button class="auth-tab" data-tab="signup" role="tab" aria-selected="false">Sign Up</button>
+            </div>
+
+            <div class="social-auth transition-wrapper" id="auth-social-wrap" style="display:flex; justify-content:center;">
+              <div id="google-auth-btn"></div>
+            </div>
+
+            <div class="auth-divider transition-wrapper" id="auth-divider-wrap"><span>or</span></div>
+
+            <form id="auth-form" class="auth-form transition-wrapper" novalidate>
+              <div class="input-group" id="username-group" style="display: none;">
+                <label for="auth-username">Username</label>
+                <input type="text" id="auth-username" placeholder="traveler123" aria-invalid="false">
+                <span class="inline-error" id="username-error"></span>
+              </div>
+              <div class="input-group">
+                <label for="auth-email">Email Address</label>
+                <input type="email" id="auth-email" placeholder="you@example.com" required aria-invalid="false">
+                <span class="inline-error" id="email-error"></span>
+              </div>
+
+              <div class="input-group">
+                <label for="auth-password">Password</label>
+                <div class="password-wrapper">
+                  <input type="password" id="auth-password" placeholder="••••••••" required minlength="8" aria-invalid="false">
+                  <button type="button" class="pwd-toggle" id="pwd-toggle-btn" aria-label="Show password">
+                    <svg class="eye-icon" id="eye-icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                      <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                  </button>
+                </div>
+                <span class="inline-error" id="password-error"></span>
+              </div>
+
+              <div class="auth-actions transition-wrapper" id="auth-forgot-pwd-wrap">
+                <a href="#" id="forgot-password" class="text-link">Forgot Password?</a>
+              </div>
+
+              <button type="submit" id="auth-submit-btn" class="primary-btn">
+                <span class="btn-text" id="auth-btn-text">Log In</span>
+                <svg class="loading-spinner hidden" id="auth-loading-spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+                </svg>
+              </button>
+            </form>
+
+            <div class="auth-guest-bypass transition-wrapper" style="text-align: center; margin-top: 18px;">
+              <a href="#" id="auth-guest-btn" class="text-link" style="font-weight: 600; color: var(--amber);">Continue as Guest (Skip Sign In)</a>
+            </div>
+
+            <p id="auth-terms" class="auth-terms transition-wrapper hidden">
+              By continuing, you agree to our <a href="terms.html" class="text-link" target="_blank">Terms of Service</a> and <a href="privacy.html" class="text-link" target="_blank">Privacy Policy</a>.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Footer for Welcome Page -->
+    <footer class="welcome-footer">
+      <div class="footer-left">TripCo.</div>
+      <div class="footer-center">
+        <a href="#" onclick="showPolicyModal('AI Privacy Policy', 'TripCo uses Google Gemini AI to curate itineraries. User data is processed securely and not used to train global models without consent.')">AI Privacy Policy</a>
+        <a href="#" onclick="showPolicyModal('Location Privacy', 'Location data is only used locally on your device to calculate routes and is never stored on our servers.')">Location Privacy</a>
+        <a href="terms.html">Terms</a>
+      </div>
+      <div class="footer-right">© 2026 TripCo. Architectural Intelligence.</div>
+    </footer>
+
+  </div>
+
+  <!-- ══════════════════════════════════════
+       VIEW: EXPLORE
+  ══════════════════════════════════════ -->
+  <div id="view-explore" class="app-view active">
+
+    <!-- ── ONBOARDING OVERLAY ── -->
+    <div id="onboarding-overlay" class="onboarding-overlay hidden">
+      <div class="onboarding-modal">
+        <div class="onboarding-slides">
+          
+          <div class="ob-slide active" id="ob-slide-1">
+            <div class="ob-icon-wrapper amber animated-float">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                <path d="M2 17l10 5 10-5M2 12l10 5 10-5"></path>
+              </svg>
+            </div>
+            <h2>Discover Anywhere</h2>
+            <p>Search any city, vibe, or duration. Our AI crafts the perfect itinerary in seconds.</p>
+          </div>
+
+          <div class="ob-slide" id="ob-slide-2">
+            <div class="ob-icon-wrapper sage animated-float" style="animation-delay: 0.2s;">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+                <path d="M8 14h.01"></path><path d="M12 14h.01"></path><path d="M16 14h.01"></path><path d="M8 18h.01"></path><path d="M12 18h.01"></path><path d="M16 18h.01"></path>
+              </svg>
+            </div>
+            <h2>Curated Itineraries</h2>
+            <p>Get beautifully structured, day-by-day plans tailored exclusively for you.</p>
+          </div>
+
+          <div class="ob-slide" id="ob-slide-3">
+            <div class="ob-icon-wrapper slate animated-float" style="animation-delay: 0.4s;">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="10" r="3"></circle>
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+              </svg>
+            </div>
+            <h2>Quick Start</h2>
+            <p style="margin-bottom: 16px;">Pick a vibe to generate your first itinerary instantly!</p>
+            <div class="quick-vibe-wrap">
+              <button class="quick-vibe-btn" data-vibe="Kyoto 3 days hidden aesthetic cafes">🍵 Kyoto aesthetic cafes</button>
+              <button class="quick-vibe-btn" data-vibe="Paris 4 days art and architecture">🎨 Paris art & architecture</button>
+              <button class="quick-vibe-btn" data-vibe="Bali 5 days relaxing beach escape">🌴 Bali beach escape</button>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="ob-footer">
+          <div class="ob-dots">
+            <span class="ob-dot active"></span>
+            <span class="ob-dot"></span>
+            <span class="ob-dot"></span>
+          </div>
+          <button id="ob-next-btn" class="ob-next-btn">Next</button>
+        </div>
+      </div>
+    </div>
+    
+    <header class="app-header">
+      <div class="header-wordmark">
+        <span class="wordmark-trip">trip</span><span class="wordmark-co">co</span>
+      </div>
+      <div class="header-actions">
+        <button class="hdr-btn" id="btn-share" aria-label="Share">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- ── AI SEARCH BAR ── -->
+    <div class="ai-search-wrap" id="ai-search-wrap">
+      <div class="ai-search-bar-wrapper" style="position: relative;">
+        <div class="ai-search-bar">
+          <div class="ai-search-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+            </svg>
+          </div>
+          <input
+            type="text"
+            id="ai-search-input"
+            class="ai-search-input"
+            placeholder="e.g. Kyoto 2 days, street food vibes..."
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button id="ai-search-btn" class="ai-search-btn" aria-label="Generate Itinerary">
+            <span class="ai-btn-text">Generate</span>
+            <svg class="ai-btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+              <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+          </button>
+        </div>
+        
+        <!-- Trip Type Toggle -->
+        <div class="trip-type-toggle">
+          <label class="trip-type-label active" data-type="city">
+            <input type="radio" name="trip_type" value="city" checked />
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="14" x2="23" y2="14"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="14" x2="4" y2="14"></line></svg>
+            City Itinerary
+          </label>
+          <label class="trip-type-label" data-type="trek">
+            <input type="radio" name="trip_type" value="trek" />
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+            Trek Guide
+          </label>
+        </div>
+        
+        <!-- Smart Search Autocomplete Dropdown -->
+        <ul id="autocomplete-dropdown" class="autocomplete-dropdown hidden"></ul>
+      </div>
+      <!-- Did You Mean Fallback -->
+      <div id="did-you-mean-container" class="did-you-mean-container hidden"></div>
+      <div class="ai-search-filters personality-sliders-container" style="flex-direction:column; gap:12px; margin-top:20px; align-items:stretch;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+          <h4 style="margin: 0; font-size:12px; text-transform:uppercase; letter-spacing:1px; color:var(--text-secondary);">Travel Group</h4>
+          <select id="group-select" style="background: var(--bg-inset); color: var(--text-primary); border: 1px solid var(--border-subtle); padding: 4px 8px; border-radius: 6px; font-size: 13px; outline: none; cursor:pointer;">
+            <option value="Solo">Solo Traveler</option>
+            <option value="Couple" selected>Couple</option>
+            <option value="Group">Friends Group (3+)</option>
+            <option value="Family">Family</option>
+          </select>
+        </div>
+        <h4 style="margin: 0; font-size:12px; text-transform:uppercase; letter-spacing:1px; color:var(--text-secondary); margin-top: 4px;">Trip Personality</h4>
+        <div class="slider-group" style="display:flex; flex-direction:column; gap:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px; color:var(--slate);">
+            <span style="flex:1">Adventure</span>
+            <input type="range" id="slider-adventure" min="1" max="100" value="50" style="flex:2;">
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px; color:var(--slate);">
+            <span style="flex:1">Luxury</span>
+            <input type="range" id="slider-luxury" min="1" max="100" value="50" style="flex:2;">
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px; color:var(--slate);">
+            <span style="flex:1">Food</span>
+            <input type="range" id="slider-food" min="1" max="100" value="70" style="flex:2;">
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px; color:var(--slate);">
+            <span style="flex:1">Nature</span>
+            <input type="range" id="slider-nature" min="1" max="100" value="60" style="flex:2;">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── LOADING OVERLAY ── -->
+    <div class="ai-loading-overlay" id="ai-loading-overlay">
+      <div class="ai-loading-content">
+        <div class="ai-loading-sketch rickshaw-sketch">
+          <svg width="240" height="80" viewBox="0 0 240 80">
+            <!-- Winding Road -->
+            <path id="rickshaw-route" d="M 10 60 C 40 60, 40 20, 80 20 C 120 20, 120 60, 160 60 C 200 60, 200 20, 230 20" fill="none" stroke="var(--border-subtle)" stroke-width="2" stroke-dasharray="4 4" stroke-linecap="round" />
+            
+            <!-- Stops -->
+            <circle cx="10" cy="60" r="4" fill="var(--bg-card)" stroke="var(--amber)" stroke-width="2" />
+            <circle cx="80" cy="20" r="4" fill="var(--bg-card)" stroke="var(--sage)" stroke-width="2" />
+            <circle cx="160" cy="60" r="4" fill="var(--bg-card)" stroke="var(--amber)" stroke-width="2" />
+            <circle cx="230" cy="20" r="4" fill="var(--bg-card)" stroke="var(--slate)" stroke-width="2" />
+
+            <!-- Rickshaw -->
+            <g>
+              <!-- Drawing scaled and aligned to path -->
+              <g transform="translate(-20, -32) scale(0.6)">
+                <!-- Back wheel -->
+                <circle cx="15" cy="48" r="6" fill="var(--bg-base)" stroke="var(--text-primary)" stroke-width="2"/>
+                <!-- Front wheel -->
+                <circle cx="48" cy="48" r="5" fill="var(--bg-base)" stroke="var(--text-primary)" stroke-width="2"/>
+                <!-- Lower body -->
+                <path fill="var(--text-primary)" stroke="var(--text-primary)" stroke-width="1" stroke-linejoin="round"
+                      d="M 10 35 L 40 35 L 45 42 L 45 46 L 10 46 Z" />
+                <!-- Canvas roof (yellow) -->
+                <path fill="var(--amber)" stroke="var(--amber)" stroke-width="1" stroke-linejoin="round"
+                      d="M 8 20 C 10 15, 30 15, 38 18 L 38 35 L 10 35 Z" />
+                <!-- Windshield -->
+                <path fill="none" stroke="var(--amber)" stroke-width="2" stroke-linecap="round"
+                      d="M 38 18 L 48 35" />
+                <!-- Front mudguard -->
+                <path fill="var(--text-primary)" d="M 45 42 L 50 42 L 52 46 L 45 46 Z" />
+                <!-- Driver silhouette -->
+                <circle cx="28" cy="23" r="3" fill="var(--bg-base)" />
+                <path d="M 25 35 L 25 26 L 31 26 L 31 35 Z" fill="var(--bg-base)" />
+                <!-- Headlight -->
+                <circle cx="50" cy="42" r="1.5" fill="var(--amber)" />
+              </g>
+              <!-- Motion animation -->
+              <animateMotion 
+                dur="3s" 
+                repeatCount="indefinite" 
+                rotate="auto" 
+                calcMode="spline"
+                keySplines="0.4 0 0.2 1"
+                keyPoints="0;1"
+                keyTimes="0;1">
+                <mpath href="#rickshaw-route"/>
+              </animateMotion>
+            </g>
+          </svg>
+        </div>
+        
+        <!-- Progress Level Indicator -->
+        <div class="ai-loading-progress-wrap">
+          <div class="ai-loading-progress-bar" id="ai-loading-progress-bar"></div>
+        </div>
+        <div class="ai-loading-progress-status">
+          <span>OS Generation Progress</span>
+          <span class="progress-percent" id="ai-loading-progress-percent">0%</span>
+        </div>
+        
+        <!-- Multi-Agent Progress Checklist -->
+        <div class="agent-checklist-wrap" style="margin-top:20px; text-align:left; max-width:240px; margin-left:auto; margin-right:auto;">
+          <ul id="agent-checklist" style="list-style:none; padding:0; margin:0; font-size:13px; color:var(--text-secondary); line-height:1.8;">
+            <li id="agent-budget" style="display:none; text-align:center; transition:opacity 0.3s; font-weight:500;">Budget Agent analyzing...</li>
+            <li id="agent-hotel" style="display:none; text-align:center; transition:opacity 0.3s; font-weight:500;">Hotel Agent querying...</li>
+            <li id="agent-food" style="display:none; text-align:center; transition:opacity 0.3s; font-weight:500;">Food Agent curating...</li>
+            <li id="agent-route" style="display:none; text-align:center; transition:opacity 0.3s; font-weight:500;">Route Optimizer plotting...</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── AI ERROR TOAST ── -->
+    <div class="ai-error-toast" id="ai-error-toast">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+      <span id="ai-error-msg">Something went wrong</span>
+    </div>
+
+    <div class="city-tabs" id="city-tabs-container" role="tablist">
+      <!-- Generated via JS -->
+    </div>
+
+    <!-- ── EXPLORE SPLIT LAYOUT ── -->
+    <div class="explore-split-layout">
+      <!-- Left: Narrative Journal -->
+      <div class="narrative-journal">
+        <main id="app-container"></main>
+      </div>
+      
+      <!-- Right/Top: Sticky Map -->
+      <div class="sticky-map-container" id="sticky-map-container">
+        
+        <div id="shared-map-wrapper" style="width:100%; height:100%; position:relative;">
+          <div class="map-layer-filters" id="map-layer-filters">
+            <button class="layer-pill active" data-layer="all">All Spots</button>
+            <button class="layer-pill" data-layer="food">
+              <span class="leg-dot sage-dot"></span> Food
+            </button>
+            <button class="layer-pill" data-layer="photo">
+              <span class="leg-dot amber-dot"></span> Photo Spots
+            </button>
+          </div>
+
+          <div id="map"></div>
+        </div>
+      </div>
+    </div>
+
+  </div> <!-- /#view-explore -->
+
+  <!-- ══════════════════════════════════════
+       VIEW: MAP
+  ══════════════════════════════════════ -->
+  <div id="view-map" class="app-view">
+    <header class="app-header">
+      <div class="header-wordmark">Satellite Explorer</div>
+    </header>
+    <!-- Map wrapper will be moved here by JS -->
+  </div>
+
+  <!-- ══════════════════════════════════════
+       VIEW: SAVED
+  ══════════════════════════════════════ -->
+  <div id="view-saved" class="app-view">
+    <header class="app-header">
+      <div class="header-wordmark">Saved Spots</div>
+    </header>
+    <div id="saved-spots-list" class="spots">
+      <div class="empty-state" style="grid-column: 1 / -1; text-align:center; padding: 80px 20px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px; background:var(--bg-inset); border-radius:var(--r-lg); border:1px dashed var(--border-subtle); min-height:400px; max-width: 600px; margin: 40px auto;">
+        <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.8; margin-bottom: 10px;">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+          <line x1="12" y1="22.08" x2="12" y2="12"/>
+        </svg>
+        <div style="max-width: 320px;">
+          <h3 style="font-family:var(--serif); font-size:22px; color:var(--text-primary); margin-bottom:12px;">Your Vault is Empty</h3>
+          <p style="font-size:15px; color:var(--text-secondary); line-height:1.6; margin:0;">Tap the bookmark icon on any spot across your itineraries to save it here. Build your personal collection of hidden gems.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       VIEW: PROFILE (Aurelian Redesign)
+  ══════════════════════════════════════ -->
+  <div id="view-profile" class="app-view aurelian-theme">
+    <div class="aurelian-profile-layout">
+      
+      <!-- SIDEBAR (Desktop Only) -->
+      <aside class="aurelian-sidebar">
+        <h1 class="aurelian-wordmark">Aurelian</h1>
+        <div class="aurelian-sidebar-user">
+          <div class="sidebar-avatar" id="sidebar-avatar">U</div>
+          <div class="sidebar-user-info">
+            <div class="sidebar-name" id="sidebar-name">Guest Traveler</div>
+            <div class="sidebar-role">Elite Member</div>
+          </div>
+        </div>
+        <nav class="aurelian-nav">
+          <a href="#" class="aurelian-nav-link" onclick="app.showView('landing-page')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg> Dashboard
+          </a>
+          <a href="#" class="aurelian-nav-link">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> Bookings
+          </a>
+          <a href="#" class="aurelian-nav-link">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg> Favorites
+          </a>
+          <a href="#" class="aurelian-nav-link">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg> Payments
+          </a>
+          <a href="#" class="aurelian-nav-link active">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> Profile
+          </a>
+        </nav>
+        <div class="aurelian-sidebar-bottom">
+          <button class="aurelian-btn-primary" onclick="app.showView('landing-page')">Book New Trip</button>
+        </div>
+      </aside>
+
+      <!-- MAIN CONTENT -->
+      <main class="aurelian-main">
+        <header class="aurelian-main-header">
+          <h2>Member Profile</h2>
+          <div class="aurelian-header-icons">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          </div>
+        </header>
+
+        <div class="aurelian-profile-center">
+          <div class="aurelian-avatar-wrapper">
+            <div class="aurelian-avatar" id="main-avatar">U</div>
+            <div class="aurelian-verified-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="#000" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
+            <input type="file" id="profile-photo-upload" accept="image/*" title="Upload Photo" />
+          </div>
+          <h1 class="aurelian-profile-name" id="main-profile-name">Guest Traveler</h1>
+          <p class="aurelian-profile-subtitle"><span class="elite-text">Elite Member</span> &bull; Verified Traveler</p>
+        </div>
+
+        <div class="aurelian-stats-row">
+          <div class="aurelian-stat-card">
+            <div class="stat-value" id="aur-stat-saved">0</div>
+            <div class="stat-label">SAVED SPOTS</div>
+          </div>
+          <div class="aurelian-stat-card">
+            <div class="stat-value" id="aur-stat-trips">1</div>
+            <div class="stat-label">TOTAL TRIPS</div>
+          </div>
+          <div class="aurelian-stat-card">
+            <div class="stat-value" id="aur-stat-offline">0</div>
+            <div class="stat-label">OFFLINE MAPS</div>
+          </div>
+        </div>
+
+        <div class="aurelian-lists-container">
+          <div class="aurelian-list-section">
+            <h3 class="aurelian-list-title">AI Limits (Free Tier)</h3>
+            <ul class="aurelian-list">
+              <li style="cursor: default;">
+                <div class="list-left" style="width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 10px;">
+                  <div style="display: flex; justify-content: space-between; width: 100%; font-size: 14px;">
+                    <span style="display: flex; align-items: center; gap: 8px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg> API Requests</span>
+                    <span id="ai-quota-text" style="font-weight: 600; color: var(--amber);">20 / 20</span>
+                  </div>
+                  <div style="width: 100%; background: rgba(255,255,255,0.05); height: 8px; border-radius: 4px; overflow: hidden; border: 1px solid var(--border-subtle);">
+                    <div id="ai-quota-bar" style="width: 100%; background: var(--amber); height: 100%; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);"></div>
+                  </div>
+                  <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">Resets in <span id="ai-reset-timer">0</span>s.</div>
+                </div>
+              </li>
+            </ul>
+          </div>
+
+          <div class="aurelian-list-section">
+            <h3 class="aurelian-list-title">Legal & Privacy</h3>
+            <ul class="aurelian-list">
+              <li onclick="showPolicyModal('AI Usage & Privacy Policy', 'TripCo uses Google Gemini AI to curate itineraries. User data is processed securely and not used to train global models without consent.')">
+                <div class="list-left">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                  <span>AI Usage & Privacy Policy</span>
+                </div>
+                <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+              </li>
+              <li onclick="showPolicyModal('Location Privacy', 'Location data is only used locally on your device to calculate routes and is never stored on our servers.')">
+                <div class="list-left">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                  <span>Location Privacy</span>
+                </div>
+                <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+              </li>
+            </ul>
+          </div>
+          
+          <div class="aurelian-list-section">
+            <h3 class="aurelian-list-title">Account</h3>
+            <ul class="aurelian-list">
+              <li class="danger" id="aur-logout-btn">
+                <div class="list-left">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                  <span>Sign Out</span>
+                </div>
+                <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="aurelian-upgrade-card">
+          <div class="upgrade-info">
+            <h4>UPGRADE TO ELITE</h4>
+            <p>Unlock private concierge services and 24/7 priority support.</p>
+          </div>
+          <button class="aurelian-btn-secondary">Explore</button>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ── ADD MEMORY MODAL ── -->
+  <div class="memory-modal-overlay hidden" id="memory-modal-overlay">
+    <div class="memory-modal-card">
+      <div class="memory-modal-header">
+        <h3 id="memory-modal-title">Add Memory</h3>
+        <button id="memory-modal-close" class="memory-modal-close" aria-label="Close modal">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div class="memory-modal-body">
+        <div class="memory-upload-area" id="memory-upload-area">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 8px; opacity: 0.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <span id="memory-upload-text">Click to upload photo</span>
+          <input type="file" id="memory-file-input" accept="image/*" style="display:none;">
+          <img id="memory-preview-img" class="memory-preview-img hidden" alt="Memory preview">
+        </div>
+        <textarea id="memory-note-input" class="memory-note-input" placeholder="Jot down a memory..."></textarea>
+      </div>
+      <div class="memory-modal-footer">
+        <button id="memory-submit-btn" class="primary-btn">Save Memory</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── BOTTOM NAV ── -->
+  <nav class="bottom-nav" aria-label="App navigation" id="bottom-nav">
+    <button class="nav-btn active" id="nav-explore" aria-label="Explore">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <span>Explore</span>
+    </button>
+    <button class="nav-btn" id="nav-map" aria-label="Map">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
+      <span>Map</span>
+    </button>
+    <button class="nav-btn" id="nav-copilot" aria-label="AI Copilot">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10H12V2z"/><path d="M12 12L2.1 7.1"/><path d="M12 12l9.9 4.9"/></svg>
+      <span style="color:var(--amber);">Copilot</span>
+    </button>
+    <button class="nav-btn" id="nav-saved" aria-label="Saved">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+      <span>Saved</span>
+    </button>
+    <button class="nav-btn" id="nav-profile" aria-label="Profile">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>Profile</span>
+    </button>
+  </nav>
+
+
+  <!-- LEAFLET & APP LOGIC -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="/supabaseClient.js?v=5"></script>
+  <script src="/app.js?v=11"></script>
+
+  <!-- WELCOME ANIMATION SCRIPT -->
+  <script>
+    (function initWelcomeCanvas() {
+      const canvas = document.getElementById('welcome-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const root = document.getElementById('view-welcome');
+      
+      let isAnimating = false;
+      let animFrameId = null;
+
+      function resize() {
+        if (!root.classList.contains('active') && root.offsetWidth === 0) return;
+        canvas.width = root.offsetWidth || window.innerWidth;
+        canvas.height = root.offsetHeight || window.innerHeight;
+      }
+      
+      window.addEventListener('resize', () => { 
+        resize(); 
+        spawnVehicles(); 
+      });
+      
+      const W = () => canvas.width, H = () => canvas.height;
+      const PAL = ['#c8875a','#7ba882','#8b9db5','#c47d8a','#ede8e2'];
+
+      function drawCar(x,s){
+        x.beginPath();x.moveTo(-52*s,8*s);x.lineTo(-52*s,-4*s);
+        x.bezierCurveTo(-52*s,-8*s,-46*s,-10*s,-40*s,-10*s);
+        x.lineTo(-28*s,-22*s);x.bezierCurveTo(-22*s,-30*s,-10*s,-32*s,0,-32*s);
+        x.bezierCurveTo(10*s,-30*s,22*s,-30*s,28*s,-22*s);
+        x.lineTo(40*s,-10*s);x.bezierCurveTo(48*s,-10*s,52*s,-6*s,52*s,-2*s);
+        x.lineTo(52*s,8*s);x.closePath();x.stroke();
+        x.beginPath();x.moveTo(-26*s,-20*s);x.bezierCurveTo(-18*s,-28*s,-8*s,-30*s,0,-30*s);
+        x.bezierCurveTo(8*s,-28*s,18*s,-28*s,24*s,-20*s);x.lineTo(-2*s,-20*s);x.closePath();x.stroke();
+        x.beginPath();x.moveTo(-2*s,-20*s);x.lineTo(-2*s,-10*s);x.stroke();
+        x.beginPath();x.arc(-30*s,10*s,11*s,0,Math.PI*2);x.stroke();
+        x.beginPath();x.arc(-30*s,10*s,4*s,0,Math.PI*2);x.stroke();
+        x.beginPath();x.arc(30*s,10*s,11*s,0,Math.PI*2);x.stroke();
+        x.beginPath();x.arc(30*s,10*s,4*s,0,Math.PI*2);x.stroke();
+        x.beginPath();x.moveTo(-54*s,3*s);x.lineTo(-60*s,3*s);x.lineTo(-60*s,8*s);x.stroke();
+        x.beginPath();x.moveTo(54*s,3*s);x.lineTo(60*s,3*s);x.lineTo(60*s,8*s);x.stroke();
+      }
+      function drawSUV(x,s){
+        x.beginPath();x.moveTo(-55*s,8*s);x.lineTo(-55*s,-8*s);
+        x.lineTo(-44*s,-24*s);x.lineTo(-20*s,-30*s);x.lineTo(20*s,-30*s);
+        x.lineTo(38*s,-24*s);x.lineTo(55*s,-8*s);x.lineTo(55*s,8*s);x.closePath();x.stroke();
+        x.beginPath();x.moveTo(-42*s,-22*s);x.lineTo(-18*s,-28*s);x.lineTo(18*s,-28*s);x.lineTo(36*s,-22*s);
+        x.lineTo(0,-22*s);x.closePath();x.stroke();
+        x.beginPath();x.moveTo(0,-22*s);x.lineTo(0,-8*s);x.stroke();
+        x.beginPath();x.arc(-33*s,10*s,12*s,0,Math.PI*2);x.stroke();
+        x.beginPath();x.arc(-33*s,10*s,5*s,0,Math.PI*2);x.stroke();
+        x.beginPath();x.arc(33*s,10*s,12*s,0,Math.PI*2);x.stroke();
+        x.beginPath();x.arc(33*s,10*s,5*s,0,Math.PI*2);x.stroke();
+      }
+      function drawBus(x,s){
+        x.beginPath();x.moveTo(-74*s,-16*s);x.lineTo(-74*s,10*s);x.lineTo(74*s,10*s);x.lineTo(74*s,-16*s);x.closePath();x.stroke();
+        x.beginPath();x.moveTo(-70*s,-16*s);x.bezierCurveTo(-70*s,-26*s,-58*s,-28*s,-46*s,-28*s);
+        x.lineTo(46*s,-28*s);x.bezierCurveTo(58*s,-28*s,70*s,-26*s,70*s,-16*s);x.stroke();
+        x.beginPath();x.rect(50*s,-24*s,18*s,14*s);x.stroke();
+        for(let i=0;i<5;i++){x.beginPath();x.rect((-56+i*22)*s,-24*s,16*s,10*s);x.stroke();}
+        x.beginPath();x.arc(-48*s,12*s,13*s,0,Math.PI*2);x.stroke();
+        x.beginPath();x.arc(-48*s,12*s,5*s,0,Math.PI*2);x.stroke();
+        x.beginPath();x.arc(14*s,12*s,13*s,0,Math.PI*2);x.stroke();
+        x.beginPath();x.arc(14*s,12*s,5*s,0,Math.PI*2);x.stroke();
+        x.beginPath();x.arc(42*s,12*s,13*s,0,Math.PI*2);x.stroke();
+        x.beginPath();x.arc(42*s,12*s,5*s,0,Math.PI*2);x.stroke();
+        x.beginPath();x.moveTo(-74*s,5*s);x.lineTo(74*s,5*s);x.stroke();
+        x.beginPath();x.rect(66*s,-10*s,8*s,6*s);x.stroke();
+      }
+      function drawBike(x,s){
+        const R=22*s;
+        x.beginPath();x.arc(-R,6*s,R,0,Math.PI*2);x.stroke();
+        for(let i=0;i<8;i++){const a=i*Math.PI/4;x.beginPath();x.moveTo(-R,6*s);x.lineTo(-R+Math.cos(a)*R,6*s+Math.sin(a)*R);x.stroke();}
+        x.beginPath();x.arc(R,6*s,R,0,Math.PI*2);x.stroke();
+        for(let i=0;i<8;i++){const a=i*Math.PI/4;x.beginPath();x.moveTo(R,6*s);x.lineTo(R+Math.cos(a)*R,6*s+Math.sin(a)*R);x.stroke();}
+        x.beginPath();x.moveTo(-R,6*s);x.lineTo(-4*s,-14*s);x.lineTo(R,6*s);x.stroke();
+        x.beginPath();x.moveTo(-4*s,-14*s);x.lineTo(-14*s,-6*s);x.lineTo(-R,6*s);x.stroke();
+        x.beginPath();x.moveTo(-4*s,-14*s);x.lineTo(-4*s,-22*s);x.stroke();
+        x.beginPath();x.moveTo(-10*s,-22*s);x.lineTo(2*s,-22*s);x.stroke();
+        x.beginPath();x.moveTo(R-3*s,-18*s);x.lineTo(R,6*s);x.stroke();
+        x.beginPath();x.moveTo(R-4*s,-18*s);x.lineTo(R-4*s,-24*s);x.stroke();
+        x.beginPath();x.moveTo(R-10*s,-24*s);x.bezierCurveTo(R-10*s,-28*s,R+5*s,-28*s,R+5*s,-22*s);x.stroke();
+        x.beginPath();x.arc(-4*s,-4*s,7*s,0,Math.PI*2);x.stroke();
+      }
+      function drawMotorbike(x,s){
+        const R=16*s;
+        x.beginPath();x.arc(-R,8*s,R,0,Math.PI*2);x.stroke();
+        x.beginPath();x.arc(-R,8*s,5*s,0,Math.PI*2);x.stroke();
+        x.beginPath();x.arc(R,8*s,R,0,Math.PI*2);x.stroke();
+        x.beginPath();x.arc(R,8*s,5*s,0,Math.PI*2);x.stroke();
+        x.beginPath();x.moveTo(-R,8*s);x.lineTo(0,-6*s);x.lineTo(R,8*s);x.stroke();
+        x.beginPath();x.moveTo(0,-6*s);x.lineTo(-8*s,2*s);x.lineTo(-R,8*s);x.stroke();
+        x.beginPath();x.moveTo(R-2*s,-14*s);x.lineTo(R,8*s);x.stroke();
+        x.beginPath();x.moveTo(R-8*s,-14*s);x.lineTo(R+6*s,-14*s);x.stroke();
+        x.beginPath();x.moveTo(-2*s,-18*s);x.lineTo(6*s,-18*s);x.stroke();
+        x.beginPath();x.moveTo(-2*s,-6*s);x.lineTo(-2*s,-18*s);x.stroke();
+        x.beginPath();x.rect(-10*s,-10*s,10*s,8*s);x.stroke();
+      }
+      function drawTram(x,s){
+        x.beginPath();x.rect(-56*s,-28*s,112*s,36*s);x.stroke();
+        x.beginPath();x.rect(-52*s,-32*s,104*s,6*s);x.stroke();
+        for(let i=0;i<4;i++){x.beginPath();x.rect((-44+i*24)*s,-26*s,18*s,14*s);x.stroke();}
+        x.beginPath();x.rect(30*s,-26*s,14*s,28*s);x.stroke();
+        x.beginPath();x.moveTo(37*s,-26*s);x.lineTo(37*s,2*s);x.stroke();
+        x.beginPath();x.moveTo(-12*s,-32*s);x.lineTo(-22*s,-52*s);x.lineTo(-2*s,-60*s);x.lineTo(18*s,-52*s);x.lineTo(8*s,-32*s);x.stroke();
+        x.beginPath();x.moveTo(-22*s,-52*s);x.lineTo(18*s,-52*s);x.stroke();
+        x.beginPath();x.setLineDash([5,4]);x.moveTo(-80*s,-60*s);x.lineTo(80*s,-60*s);x.stroke();x.setLineDash([]);
+        for(const ox of[-38,-14,14,38]){x.beginPath();x.arc(ox*s,10*s,8*s,0,Math.PI*2);x.stroke();x.beginPath();x.arc(ox*s,10*s,3*s,0,Math.PI*2);x.stroke();}
+        x.beginPath();x.moveTo(-56*s,6*s);x.lineTo(56*s,6*s);x.stroke();
+        x.beginPath();x.arc(-52*s,-8*s,4*s,0,Math.PI*2);x.stroke();
+        x.beginPath();x.arc(52*s,-8*s,4*s,0,Math.PI*2);x.stroke();
+      }
+      function drawTrain(x,s){
+        x.beginPath();x.rect(-58*s,-18*s,96*s,24*s);x.stroke();
+        x.beginPath();x.moveTo(38*s,4*s);x.bezierCurveTo(50*s,4*s,56*s,-2*s,56*s,-8*s);x.lineTo(38*s,-8*s);x.stroke();
+        for(let i=0;i<4;i++){x.beginPath();x.rect((-44+i*22)*s,-14*s,16*s,10*s);x.stroke();}
+        for(const ox of[-40,-18,10,32]){x.beginPath();x.arc(ox*s,8*s,6*s,0,Math.PI*2);x.stroke();}
+        x.beginPath();x.setLineDash([4,6]);x.moveTo(-62*s,12*s);x.lineTo(60*s,12*s);x.stroke();x.setLineDash([]);
+      }
+      function drawPlane(x,s){
+        x.beginPath();x.moveTo(-56*s,0);x.bezierCurveTo(-30*s,-5*s,30*s,-5*s,56*s,0);x.bezierCurveTo(30*s,5*s,-30*s,5*s,-56*s,0);x.closePath();x.stroke();
+        x.beginPath();x.moveTo(52*s,-2*s);x.bezierCurveTo(62*s,-1*s,66*s,0,62*s,0);x.bezierCurveTo(66*s,0,62*s,1*s,52*s,2*s);x.stroke();
+        x.beginPath();x.moveTo(4*s,-3*s);x.bezierCurveTo(-2*s,-3*s,-18*s,-26*s,-38*s,-36*s);x.bezierCurveTo(-28*s,-18*s,-12*s,-5*s,-4*s,-2*s);x.stroke();
+        x.beginPath();x.moveTo(4*s,3*s);x.bezierCurveTo(-2*s,3*s,-18*s,26*s,-38*s,36*s);x.bezierCurveTo(-28*s,18*s,-12*s,5*s,-4*s,2*s);x.stroke();
+        x.beginPath();x.moveTo(-38*s,-36*s);x.lineTo(-44*s,-44*s);x.lineTo(-40*s,-38*s);x.stroke();
+        x.beginPath();x.moveTo(-38*s,36*s);x.lineTo(-44*s,44*s);x.lineTo(-40*s,38*s);x.stroke();
+        x.beginPath();x.moveTo(-50*s,0);x.bezierCurveTo(-54*s,-8*s,-56*s,-22*s,-48*s,-24*s);x.bezierCurveTo(-42*s,-24*s,-40*s,-10*s,-42*s,0);x.stroke();
+        x.beginPath();x.moveTo(-50*s,-2*s);x.bezierCurveTo(-54*s,-6*s,-66*s,-10*s,-72*s,-10*s);x.bezierCurveTo(-64*s,-5*s,-54*s,-1*s,-50*s,0);x.stroke();
+        x.beginPath();x.moveTo(-50*s,2*s);x.bezierCurveTo(-54*s,6*s,-66*s,10*s,-72*s,10*s);x.bezierCurveTo(-64*s,5*s,-54*s,1*s,-50*s,0);x.stroke();
+        for(let i=0;i<5;i++){x.beginPath();x.arc((20-i*14)*s,-2*s,2*s,0,Math.PI*2);x.stroke();}
+      }
+      function drawHelicopter(x,s){
+        x.beginPath();x.ellipse(0,0,32*s,12*s,0,0,Math.PI*2);x.stroke();
+        x.beginPath();x.moveTo(-32*s,4*s);x.bezierCurveTo(-42*s,6*s,-48*s,4*s,-48*s,2*s);x.lineTo(-48*s,-2*s);x.bezierCurveTo(-48*s,-4*s,-38*s,-4*s,-32*s,-4*s);x.stroke();
+        x.beginPath();x.moveTo(-50*s,0);x.lineTo(-60*s,0);x.stroke();
+        x.beginPath();x.moveTo(-60*s,-6*s);x.lineTo(-60*s,6*s);x.stroke();
+        x.beginPath();x.moveTo(-40*s,-12*s);x.lineTo(-40*s,-24*s);x.stroke();
+        x.beginPath();x.moveTo(-62*s,-24*s);x.lineTo(-18*s,-24*s);x.stroke();
+        x.beginPath();x.ellipse(-40*s,-24*s,22*s,4*s,0,0,Math.PI*2);x.stroke();
+        x.beginPath();x.moveTo(28*s,-8*s);x.lineTo(28*s,-18*s);x.moveTo(20*s,-18*s);x.lineTo(36*s,-18*s);x.stroke();
+        x.beginPath();x.rect(10*s,-8*s,14*s,10*s);x.stroke();
+        x.beginPath();x.moveTo(32*s,0);x.lineTo(40*s,6*s);x.moveTo(32*s,6*s);x.lineTo(40*s,0);x.stroke();
+      }
+      function drawShip(x,s){
+        x.beginPath();x.moveTo(-70*s,8*s);x.lineTo(-70*s,-4*s);x.lineTo(-56*s,-4*s);x.lineTo(-56*s,-18*s);x.lineTo(-20*s,-18*s);x.lineTo(-20*s,-4*s);x.lineTo(40*s,-4*s);x.lineTo(70*s,8*s);x.closePath();x.stroke();
+        x.beginPath();x.rect(-54*s,-30*s,34*s,12*s);x.stroke();
+        x.beginPath();x.rect(-46*s,-38*s,18*s,10*s);x.stroke();
+        x.beginPath();x.moveTo(-38*s,-38*s);x.lineTo(-38*s,-50*s);x.stroke();
+        x.beginPath();x.moveTo(-22*s,-38*s);x.lineTo(-22*s,-48*s);x.stroke();
+        for(let i=0;i<4;i++){x.beginPath();x.rect((-14+i*14)*s,-14*s,10*s,10*s);x.stroke();}
+        x.beginPath();x.setLineDash([3,5]);x.moveTo(-70*s,12*s);x.lineTo(70*s,12*s);x.stroke();x.setLineDash([]);
+      }
+      function drawSailboat(x,s){
+        x.beginPath();x.moveTo(-40*s,10*s);x.bezierCurveTo(-38*s,14*s,38*s,14*s,40*s,10*s);x.closePath();x.stroke();
+        x.beginPath();x.moveTo(0,10*s);x.lineTo(0,-44*s);x.stroke();
+        x.beginPath();x.moveTo(0,-44*s);x.lineTo(-34*s,10*s);x.lineTo(0,10*s);x.closePath();x.stroke();
+        x.beginPath();x.moveTo(0,-30*s);x.lineTo(26*s,10*s);x.lineTo(0,10*s);x.closePath();x.stroke();
+        x.beginPath();x.setLineDash([3,5]);x.moveTo(-50*s,14*s);x.lineTo(50*s,14*s);x.stroke();x.setLineDash([]);
+      }
+      function drawHotAirBalloon(x,s){
+        x.beginPath();x.ellipse(0,-20*s,22*s,30*s,0,0,Math.PI*2);x.stroke();
+        for(let i=0;i<5;i++){const a=-1.2+i*0.6;x.beginPath();x.moveTo(0,-50*s);x.bezierCurveTo(Math.cos(a)*28*s,-30*s,Math.cos(a)*28*s,0,0,8*s);x.stroke();}
+        x.beginPath();x.moveTo(-22*s,-20*s);x.lineTo(-22*s,8*s);x.moveTo(22*s,-20*s);x.lineTo(22*s,8*s);x.stroke();
+        x.beginPath();x.moveTo(-12*s,8*s);x.lineTo(-14*s,20*s);x.stroke();
+        x.beginPath();x.moveTo(12*s,8*s);x.lineTo(14*s,20*s);x.stroke();
+        x.beginPath();x.rect(-14*s,18*s,28*s,8*s);x.stroke();
+      }
+      function drawScooter(x,s){
+        const R=12*s;
+        x.beginPath();x.arc(-R,8*s,R,0,Math.PI*2);x.stroke();
+        x.beginPath();x.arc(-R,8*s,4*s,0,Math.PI*2);x.stroke();
+        x.beginPath();x.arc(R,8*s,R,0,Math.PI*2);x.stroke();
+        x.beginPath();x.arc(R,8*s,4*s,0,Math.PI*2);x.stroke();
+        x.beginPath();x.moveTo(-R,-4*s);x.lineTo(2*s,-14*s);x.lineTo(R,-4*s);x.stroke();
+        x.beginPath();x.moveTo(-R,-4*s);x.bezierCurveTo(-R-4*s,-4*s,-R-4*s,8*s,-R,8*s);x.stroke();
+        x.beginPath();x.moveTo(2*s,-14*s);x.lineTo(2*s,-22*s);x.stroke();
+        x.beginPath();x.moveTo(-4*s,-22*s);x.lineTo(8*s,-22*s);x.stroke();
+        x.beginPath();x.rect(-14*s,-8*s,12*s,6*s);x.stroke();
+      }
+      function drawTrafficLight(x,s){
+        x.beginPath();x.rect(-8*s,-32*s,16*s,38*s);x.stroke();
+        x.beginPath();x.arc(0,-24*s,5*s,0,Math.PI*2);x.stroke();
+        x.beginPath();x.arc(0,-12*s,5*s,0,Math.PI*2);x.stroke();
+        x.beginPath();x.arc(0,0,5*s,0,Math.PI*2);x.stroke();
+        x.beginPath();x.moveTo(0,6*s);x.lineTo(0,18*s);x.stroke();
+        x.beginPath();x.moveTo(-8*s,18*s);x.lineTo(8*s,18*s);x.stroke();
+      }
+      function drawCone(x,s){
+        x.beginPath();x.moveTo(0,-30*s);x.lineTo(18*s,6*s);x.lineTo(-18*s,6*s);x.closePath();x.stroke();
+        x.beginPath();x.moveTo(-8*s,-12*s);x.lineTo(8*s,-12*s);x.stroke();
+        x.beginPath();x.moveTo(-13*s,-2*s);x.lineTo(13*s,-2*s);x.stroke();
+        x.beginPath();x.rect(-20*s,6*s,40*s,5*s);x.stroke();
+        x.beginPath();x.rect(-3*s,-34*s,6*s,5*s);x.stroke();
+      }
+      function drawGasPump(x,s){
+        x.beginPath();x.rect(-18*s,-36*s,36*s,54*s);x.stroke();
+        x.beginPath();x.rect(-12*s,-30*s,24*s,14*s);x.stroke();
+        x.beginPath();x.rect(-12*s,-10*s,24*s,12*s);x.stroke();
+        x.beginPath();x.rect(-12*s,8*s,24*s,10*s);x.stroke();
+        x.beginPath();x.moveTo(18*s,-16*s);x.bezierCurveTo(28*s,-16*s,28*s,-4*s,22*s,-4*s);x.stroke();
+        x.beginPath();x.arc(0,-36*s,10*s,Math.PI,0);x.stroke();
+        x.beginPath();x.rect(-22*s,18*s,44*s,6*s);x.stroke();
+      }
+      function drawBusStop(x,s){
+        x.beginPath();x.rect(-40*s,-40*s,80*s,6*s);x.stroke();
+        x.beginPath();x.moveTo(-40*s,-40*s);x.bezierCurveTo(-40*s,-46*s,-36*s,-48*s,-30*s,-48*s);x.lineTo(30*s,-48*s);x.bezierCurveTo(36*s,-48*s,40*s,-46*s,40*s,-40*s);x.stroke();
+        for(let i=0;i<3;i++){x.beginPath();x.moveTo((-28+i*20)*s,-34*s);x.lineTo((-28+i*20)*s,6*s);x.lineTo((-10+i*20)*s,6*s);x.lineTo((-10+i*20)*s,-34*s);x.stroke();}
+        x.beginPath();x.moveTo(-38*s,-40*s);x.lineTo(-38*s,6*s);x.stroke();
+        x.beginPath();x.moveTo(38*s,-40*s);x.lineTo(38*s,6*s);x.stroke();
+        x.beginPath();x.rect(-20*s,-4*s,40*s,5*s);x.stroke();
+        x.beginPath();x.moveTo(-18*s,-4*s);x.lineTo(-18*s,6*s);x.stroke();
+        x.beginPath();x.moveTo(18*s,-4*s);x.lineTo(18*s,6*s);x.stroke();
+      }
+      function drawRocketship(x,s){
+        x.beginPath();x.moveTo(0,-40*s);x.bezierCurveTo(12*s,-28*s,14*s,-10*s,14*s,10*s);x.lineTo(-14*s,10*s);x.bezierCurveTo(-14*s,-10*s,-12*s,-28*s,0,-40*s);x.stroke();
+        x.beginPath();x.moveTo(-14*s,4*s);x.lineTo(-24*s,18*s);x.lineTo(-14*s,14*s);x.stroke();
+        x.beginPath();x.moveTo(14*s,4*s);x.lineTo(24*s,18*s);x.lineTo(14*s,14*s);x.stroke();
+        x.beginPath();x.arc(0,-8*s,6*s,0,Math.PI*2);x.stroke();
+        x.beginPath();x.moveTo(-6*s,10*s);x.bezierCurveTo(-8*s,18*s,8*s,18*s,6*s,10*s);x.stroke();
+      }
+
+      const SKETCHES=[
+        {fn:drawCar,hw:62,hh:22,scale:0.52},
+        {fn:drawSUV,hw:58,hh:22,scale:0.52},
+        {fn:drawBus,hw:80,hh:30,scale:0.50},
+        {fn:drawBike,hw:46,hh:28,scale:0.62},
+        {fn:drawMotorbike,hw:35,hh:20,scale:0.65},
+        {fn:drawScooter,hw:28,hh:22,scale:0.70},
+        {fn:drawTram,hw:60,hh:65,scale:0.46},
+        {fn:drawTrain,hw:62,hh:22,scale:0.50},
+        {fn:drawPlane,hw:75,hh:46,scale:0.50},
+        {fn:drawHelicopter,hw:62,hh:30,scale:0.54},
+        {fn:drawShip,hw:72,hh:32,scale:0.48},
+        {fn:drawSailboat,hw:44,hh:48,scale:0.54},
+        {fn:drawHotAirBalloon,hw:24,hh:58,scale:0.52},
+        {fn:drawTrafficLight,hw:10,hh:38,scale:0.62},
+        {fn:drawCone,hw:22,hh:36,scale:0.62},
+        {fn:drawGasPump,hw:22,hh:42,scale:0.56},
+        {fn:drawBusStop,hw:42,hh:50,scale:0.52},
+        {fn:drawRocketship,hw:26,hh:48,scale:0.56},
+      ];
+
+      let vehicles=[];
+      function spawnVehicles(){
+        vehicles=[];
+        const w=W(),h=H();
+        const ROWS=7;
+        const rowH=h/ROWS;
+        const CX=w/2,CY=h/2,DEAD=200;
+        for(let row=0;row<ROWS;row++){
+          const yBase=(row+0.5)*rowH;
+          const dir=row%2===0?1:-1;
+          const baseSpeed=(0.20+Math.random()*0.18)*dir;
+          const itemCount=5+Math.floor(Math.random()*3);
+          const placed=[];
+          for(let i=0;i<itemCount;i++){
+            const sk=SKETCHES[Math.floor(Math.random()*SKETCHES.length)];
+            const col=PAL[Math.floor(Math.random()*PAL.length)];
+            const sc=sk.scale*(0.82+Math.random()*0.28);
+            const hw=sk.hw*sc;
+            const yOff=(Math.random()-0.5)*rowH*0.3;
+            const cy=yBase+yOff;
+            const xPos=i/itemCount+(Math.random()*0.05);
+            let ok=true;
+            const cx=xPos*w;
+            for(const p of placed){if(Math.abs(cx-p.cx)<(hw+p.hw+24))ok=false;}
+            const dx=cx-CX,dy=cy-CY;
+            if(Math.sqrt(dx*dx+dy*dy)<DEAD)ok=false;
+            if(ok){
+              placed.push({cx,hw});
+              vehicles.push({
+                fn:sk.fn,hw,sc,
+                x:xPos,y:cy/h,
+                speed:baseSpeed*(0.85+Math.random()*0.3),
+                color:col,flip:dir<0,
+                alpha:0.16+Math.random()*0.13,
+                wobble:Math.random()*Math.PI*2,
+                wobbleSpeed:0.004+Math.random()*0.006,
+                wobbleAmt:(Math.random()-0.5)*0.008,
+              });
+            }
+          }
+        }
+      }
+
+      const orbs=Array.from({length:5},(_,i)=>({
+        x:Math.random(),y:Math.random(),r:0.18+Math.random()*0.15,
+        color:PAL[i%4],vx:(Math.random()-0.5)*0.00007,vy:(Math.random()-0.5)*0.00007,
+        phase:Math.random()*Math.PI*2,speed:0.0002+Math.random()*0.0003
+      }));
+      
+      const particles=Array.from({length:38},()=>({
+        x:Math.random(),y:Math.random(),size:0.3+Math.random()*0.9,
+        alpha:0.04+Math.random()*0.10,vy:-(0.00005+Math.random()*0.00008),
+        vx:(Math.random()-0.5)*0.00002,tw:Math.random()*Math.PI*2,ts:0.010+Math.random()*0.014
+      }));
+
+      function draw(){
+        if (!root.classList.contains('active')) {
+          animFrameId = requestAnimationFrame(draw);
+          return;
+        }
+
+        const w=W(),h=H();
+        if(w===0 || h===0) {
+           resize();
+        }
+
+        ctx.clearRect(0,0,w,h);
+        ctx.fillStyle='#0f0d0b';ctx.fillRect(0,0,w,h);
+        orbs.forEach(o=>{
+          o.phase+=o.speed;o.x+=o.vx+Math.sin(o.phase)*0.00005;o.y+=o.vy+Math.cos(o.phase*0.7)*0.00004;
+          if(o.x<-0.3)o.x=1.3;if(o.x>1.3)o.x=-0.3;if(o.y<-0.3)o.y=1.3;if(o.y>1.3)o.y=-0.3;
+          const px=o.x*w,py=o.y*h,pr=o.r*Math.min(w,h);
+          const g=ctx.createRadialGradient(px,py,0,px,py,pr);
+          g.addColorStop(0,o.color+'0e');g.addColorStop(0.5,o.color+'06');g.addColorStop(1,'transparent');
+          ctx.fillStyle=g;ctx.beginPath();ctx.arc(px,py,pr,0,Math.PI*2);ctx.fill();
+        });
+        vehicles.forEach(v=>{
+          v.wobble+=v.wobbleSpeed;v.x+=v.speed/w*0.85;
+          if(v.speed>0&&v.x>1.35)v.x=-0.35;
+          if(v.speed<0&&v.x<-0.35)v.x=1.35;
+          const cx=v.x*w,cy=(v.y+Math.sin(v.wobble)*v.wobbleAmt)*h;
+          const ex=Math.min(1,Math.min((v.x+0.2)*4,(1.2-v.x)*4));
+          const alpha=v.alpha*Math.max(0,ex);
+          if(alpha<0.004)return;
+          ctx.save();
+          ctx.globalAlpha=alpha;ctx.strokeStyle=v.color;
+          ctx.lineWidth=1.05;ctx.lineCap='round';ctx.lineJoin='round';
+          ctx.translate(cx,cy);
+          if(v.flip)ctx.scale(-1,1);
+          v.fn(ctx,v.sc);
+          ctx.restore();
+        });
+        particles.forEach(p=>{
+          p.x+=p.vx;p.y+=p.vy;p.tw+=p.ts;
+          if(p.y<-0.01){p.y=1.01;p.x=Math.random();}
+          if(p.x<0)p.x=1;if(p.x>1)p.x=0;
+          ctx.globalAlpha=p.alpha*(0.5+0.5*Math.sin(p.tw));
+          ctx.fillStyle='#ede8e2';ctx.beginPath();ctx.arc(p.x*w,p.y*h,p.size,0,Math.PI*2);ctx.fill();
+        });
+        ctx.globalAlpha=1;
+        const vg=ctx.createRadialGradient(w*0.5,h*0.5,h*0.05,w*0.5,h*0.5,w*0.62);
+        vg.addColorStop(0,'rgba(15,13,11,0.82)');
+        vg.addColorStop(0.38,'rgba(15,13,11,0.55)');
+        vg.addColorStop(0.65,'rgba(15,13,11,0.22)');
+        vg.addColorStop(1,'rgba(15,13,11,0.0)');
+        ctx.fillStyle=vg;ctx.fillRect(0,0,w,h);
+        animFrameId = requestAnimationFrame(draw);
+      }
+      
+      // Start loop but only draw when active
+      resize();
+      spawnVehicles();
+      draw();
+      
+      // Hook into the global showLoading event if possible, 
+      // or just rely on the CSS class check inside draw()
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          if (mutation.attributeName === 'class') {
+            if (root.classList.contains('active')) {
+              resize();
+              spawnVehicles();
+            }
+          }
+        });
+      });
+      observer.observe(root, { attributes: true });
+
+    })();
+  </script>
+
+  <script>
+    (function initAmbientSoundscapes() {
+      // Audio Engine powered by YouTube for background music
+      class AmbientEngine {
+        constructor() {
+          this.isPlaying = false;
+          this.player = null;
+          this.volume = 15; // Low volume
+          this.videoId = "NgnaavPxSmk"; // Bobby Bare - 500 Miles Away From Home
+          this.playlistId = "RD" + this.videoId; // Auto-generated Mix Radio
+          this.initYouTubeAPI();
+        }
+
+        initYouTubeAPI() {
+          if (!document.getElementById('yt-api-script')) {
+            const tag = document.createElement('script');
+            tag.id = 'yt-api-script';
+            tag.src = "https://www.youtube.com/iframe_api";
+            const firstScriptTag = document.getElementsByTagName('script')[0];
+            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+            
+            const playerDiv = document.createElement('div');
+            playerDiv.id = 'bg-music-player';
+            playerDiv.style.display = 'none';
+            document.body.appendChild(playerDiv);
+
+            window.onYouTubeIframeAPIReady = () => {
+              this.player = new YT.Player('bg-music-player', {
+                height: '0',
+                width: '0',
+                playerVars: { 
+                  'autoplay': 0, 
+                  'loop': 1, 
+                  'listType': 'playlist',
+                  'list': this.playlistId, 
+                  'controls': 0,
+                  'origin': window.location.origin
+                },
+                events: {
+                  'onReady': (event) => {
+                    event.target.setVolume(this.volume);
+                    if (this.isPlaying) {
+                      event.target.playVideo();
+                    }
+                  }
+                }
+              });
+            };
+          }
+        }
+
+        play() {
+          this.isPlaying = true;
+          if (this.player && typeof this.player.playVideo === 'function') {
+            this.player.setVolume(this.volume);
+            this.player.playVideo();
+          }
+        }
+
+        stop() {
+          this.isPlaying = false;
+          if (this.player && typeof this.player.pauseVideo === 'function') {
+            this.player.pauseVideo();
+          }
+        }
+
+        toggle() {
+          if (this.isPlaying) {
+            this.stop();
+          } else {
+            this.play();
+          }
+          return this.isPlaying;
+        }
+      }
+
+      const engine = new AmbientEngine();
+
+      // UI Bindings
+      const btn = document.getElementById('ambient-sound-btn');
+      const icon = document.getElementById('ambient-icon');
+
+      if (!btn || !icon) return;
+
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isPlaying = engine.toggle();
+
+        if (isPlaying) {
+          btn.classList.add('playing');
+          // Soundwave speaker icon
+          icon.innerHTML = `
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+          `;
+        } else {
+          btn.classList.remove('playing');
+          // Mute speaker icon
+          icon.innerHTML = `
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <line x1="23" y1="9" x2="17" y2="15"></line>
+            <line x1="17" y1="9" x2="23" y2="15"></line>
+          `;
+        }
+      });
+      
+      // Auto-mute if page goes inactive to save resources
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && engine.isPlaying) {
+          engine.stopAll();
+        } else if (!document.hidden && engine.isPlaying) {
+          engine.play();
+        }
+      });
+    })();
+  </script>
+
+  <!-- Report Problem / Feedback Button -->
+  <a href="mailto:hellotripco@gmail.com?subject=TripCo%20Feedback%20%2F%20Bug%20Report" class="feedback-trigger-btn" id="feedback-trigger-btn" aria-label="Report a problem or give feedback" title="Report a Problem">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+      <circle cx="12" cy="9" r="1" fill="currentColor"></circle>
+      <line x1="12" y1="12" x2="12" y2="14" stroke-width="2.5"></line>
+    </svg>
+  </a>
+  <!-- AI Copilot FAB & Drawer -->
+  <div class="copilot-fab" id="copilot-fab" aria-label="AI Copilot">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2a10 10 0 1 0 10 10H12V2z"></path>
+      <path d="M12 12L2.1 7.1"></path>
+      <path d="M12 12l9.9 4.9"></path>
+    </svg>
+  </div>
+  
+  <div class="copilot-overlay" id="copilot-overlay"></div>
+  <div class="copilot-drawer" id="copilot-drawer">
+    <div class="copilot-header">
+      <div class="copilot-title" style="display:flex; align-items:center; gap:8px; font-weight:600;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10H12V2z"></path><path d="M12 12L2.1 7.1"></path><path d="M12 12l9.9 4.9"></path></svg>
+        TripCo Copilot
+      </div>
+      <button class="copilot-close" id="copilot-close" aria-label="Close Copilot" style="background:none; border:none; cursor:pointer; color:var(--text-secondary);">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    </div>
+    <div class="copilot-body" id="copilot-body">
+      <div class="copilot-msg bot">Hello! I'm your AI Travel Companion. Ask me anything about your destination or tap a suggestion below:</div>
+      <div class="copilot-chips" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; padding-bottom:10px;">
+        <span class="copilot-chip" onclick="document.getElementById('copilot-input').value=`Find me a highly-rated Italian restaurant for dinner.`; document.getElementById('copilot-send').click();">🍕 Italian dinner</span>
+        <span class="copilot-chip" onclick="document.getElementById('copilot-input').value=`Where is a quiet cafe with wifi to work?`; document.getElementById('copilot-send').click();">☕ Quiet cafe with WiFi</span>
+        <span class="copilot-chip" onclick="document.getElementById('copilot-input').value=`What are some fun things to do with kids nearby?`; document.getElementById('copilot-send').click();">🎡 Fun with kids</span>
+        <span class="copilot-chip" onclick="document.getElementById('copilot-input').value=`Are there any live music events or jazz clubs tonight?`; document.getElementById('copilot-send').click();">🎷 Live music tonight</span>
+        <span class="copilot-chip" onclick="document.getElementById('copilot-input').value=`What is the fastest way to get to the airport?`; document.getElementById('copilot-send').click();">✈️ Route to airport</span>
+        <span class="copilot-chip" onclick="document.getElementById('copilot-input').value=`Are there any farmer's markets happening this weekend?`; document.getElementById('copilot-send').click();">🥑 Farmer's markets</span>
+        <span class="copilot-chip" onclick="document.getElementById('copilot-input').value=`What is the weather going to be like tomorrow morning?`; document.getElementById('copilot-send').click();">☀️ Tomorrow's weather</span>
+      </div>
+    </div>
+    <div class="copilot-footer">
+      <input type="text" id="copilot-input" class="copilot-input" placeholder="Ask anything about your trip..." />
+      <button class="copilot-send" id="copilot-send" aria-label="Send Message" style="background:var(--amber); border:none; border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center; color:white; cursor:pointer; flex-shrink:0;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+      </button>
+    </div>
+  </div>
+  
+  <!-- Premium Policy Modal -->
+  <div id="premium-modal-overlay" class="premium-modal-overlay">
+    <div class="premium-modal">
+      <h3 id="premium-modal-title">Privacy Policy</h3>
+      <p id="premium-modal-text">Policy text goes here.</p>
+      <button onclick="document.getElementById('premium-modal-overlay').classList.remove('active')">Acknowledge</button>
+    </div>
+  </div>
+</body>
+</html>

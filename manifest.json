@@ -1,0 +1,26 @@
+{
+  "name": "TripCo",
+  "short_name": "TripCo",
+  "description": "AI-Curated Travel Itineraries",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#121212",
+  "icons": [
+    {
+      "src": "https://raw.githubusercontent.com/google/material-design-icons/master/png/maps/flight/materialicons/48dp/2x/baseline_flight_black_48dp.png",
+      "sizes": "96x96",
+      "type": "image/png"
+    },
+    {
+      "src": "https://raw.githubusercontent.com/google/material-design-icons/master/png/maps/flight/materialicons/48dp/2x/baseline_flight_black_48dp.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://raw.githubusercontent.com/google/material-design-icons/master/png/maps/flight/materialicons/48dp/2x/baseline_flight_black_48dp.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

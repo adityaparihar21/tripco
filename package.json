@@ -1,0 +1,11 @@
+{
+  "name": "tripco",
+  "version": "1.0.0",
+  "description": "TripCo static site",
+  "scripts": {
+    "dev": "npx live-server --watch=."
+  },
+  "devDependencies": {
+    "live-server": "^1.2.2"
+  }
+}
