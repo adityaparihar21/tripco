@@ -523,15 +523,15 @@
         </div>
 
         <div class="aurelian-stats-row">
-          <div class="aurelian-stat-card">
+          <div class="aurelian-stat-card" onclick="document.getElementById('nav-saved').click();" style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
             <div class="stat-value" id="aur-stat-saved">0</div>
             <div class="stat-label">SAVED SPOTS</div>
           </div>
-          <div class="aurelian-stat-card">
+          <div class="aurelian-stat-card" onclick="document.getElementById('nav-saved').click();" style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
             <div class="stat-value" id="aur-stat-trips">1</div>
             <div class="stat-label">TOTAL TRIPS</div>
           </div>
-          <div class="aurelian-stat-card">
+          <div class="aurelian-stat-card" onclick="window.showPolicyModal('Offline Maps', 'Offline map downloading is currently in beta and will be rolling out to Elite members shortly.');" style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
             <div class="stat-value" id="aur-stat-offline">0</div>
             <div class="stat-label">OFFLINE MAPS</div>
           </div>
